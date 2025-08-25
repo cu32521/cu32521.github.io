@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="GBK" />
+<title>QQ PC 客户端 Demo</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;}
+  html,body{height:100%;display:flex;background:#f5f5f5;overflow:hidden;}
+
+  /* 左侧列表 */
+  #left   {width:260px;background:#2e2e2e;color:#fff;display:flex;flex-direction:column;}
+  #header {height:60px;line-height:60px;padding:0 15px;font-size:16px;background:#0003;}
+  #tabs   {display:flex;border-bottom:1px solid #3e3e3e;}
+  .tab    {flex:1;text-align:center;padding:8px 0;cursor:pointer;font-size:14px;}
+  .tab.active{background:#0003;color:#12b7f5;}
+  #list   {flex:1;overflow-y:auto;}
+  .item   {display:flex;align-items:center;padding:10px 12px;cursor:pointer;}
+  .item:hover{background:#ffffff14;}
+  .avatar {width:40px;height:40px;border-radius:50%;margin-right:12px;background:#12b7f5;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px;}
+  .name   {font-size:14px;}
+
+  /* 右侧聊天 */
+  #right      {flex:1;display:flex;flex-direction:column;background:#fff;}
+  #chatHeader {height:60px;line-height:60px;padding:0 15px;border-bottom:1px solid #e0e0e0;font-weight:bold;font-size:16px;}
+  #chatBody   {flex:1;padding:15px;overflow-y:auto;display:flex;flex-direction:column-reverse;}
+  .bubble     {max-width:60%;padding:10px 12px;margin:4px 0;border-radius:6px;font-size:14px;line-height:1.4;}
+  .bubble.me  {align-self:flex-end;background:#95ec69;}
+  .bubble.other{align-self:flex-start;background:#e8e8e8;}
+  #chatFooter {height:70px;border-top:1px solid #e0e0e0;display:flex;align-items:center;padding:0 15px;}
+  #msgInput   {flex:1;padding:8px 10px;border:1px solid #ccc;border-radius:4px;font-size:14px;}
+  #sendBtn    {margin-left:10px;padding:8px 16px;background:#12b7f5;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;}
+</style>
+</head>
+<body>
+
+<!-- 左侧 -->
+<div id="left">
+  <div id="header">NapCat QQ</div>
+  <div id="tabs">
+    <div class="tab active" data-type="friend">好友</div>
+    <div class="tab" data-type="group">群</div>
+  </div>
+  <div id="list"></div>
+</div>
+
+<!-- 右侧 -->
+<div id="right" style="display:none">
+  <div id="chatHeader"></div>
+  <div id="chatBody"></div>
+  <div id="chatFooter">
+    <input id="msgInput" placeholder="输入消息回车发送" />
+    <button id="sendBtn">发送</button>
+  </div>
+</div>
+
+<script>
+const API = 'http://onebot.yuny.work:3000';   // NapCat HTTP 地址
+let selfId = null;
+let friends = [], groups = [];
+let currentType = 'friend';   // friend / group
+let currentId   = null;
+let lastMsgId = 0;
+let autoTimer = null;
+
+/* ========= 通用请求 ========= */
+async function call(action, params = {}) {
+  const res = await fetch(`${API}/${action}`, {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(params)
+  });
+  const json = await res.json();
+  if (json.status !== 'ok') throw new Error(JSON.stringify(json));
+  return json.data;
+}
+
+/* ========= 初始化 ========= */
+async function init() {
+  const info = await call('get_login_info');
+  selfId = info.user_id;
+  [friends, groups] = await Promise.all([
+    call('get_friend_list'),
+    call('get_group_list')
+  ]);
+  renderList('friend');
+  bindTabs();
+}
+init();
+
+/* ========= 渲染列表 ========= */
+function renderList(type) {
+  const arr = type === 'friend' ? friends : groups;
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  arr.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.dataset.id   = item.user_id || item.group_id;
+    div.dataset.type = type;
+    const name = item.nickname || item.group_name;
+    const id = item.user_id || item.group_id;
+    div.innerHTML = `
+        <div class = "avatar">${name[0]}</div>
+        <div class = "name">${name} (${id})</div>
+        `;
+    div.onclick = ( ) => openChat(type,id,name);
+    list.appendChild(div);
+  });
+}
+
+/* ========= 切换标签 ========= */
+function bindTabs() {
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentType = tab.dataset.type;
+      renderList(currentType);
+    };
+  });
+}
+
+/* ========= 打开聊天窗口 ========= */
+async function openChat(type, id, name) {
+  currentType = type;
+  currentId   = id;
+  document.getElementById('right').style.display = 'flex';
+  document.getElementById('chatHeader').textContent = name;
+  await loadHistory();
+  if (autoTimer) clearInterval(autoTimer);
+  autoTimer = setInterval(() => fetchNewMsg(), 1000);
+}
+
+/* ========= 拉取历史消息 ========= */
+async function loadHistory() {   if (!currentId) return;   try {     const res = await fetch(`${API}/${       currentType === 'friend'         ? 'get_friend_msg_history'         : 'get_group_msg_history'     }`, {       method: 'POST',       headers: { 'Content-Type': 'application/json' },       body: JSON.stringify({         [currentType === 'friend' ? 'user_id' : 'group_id']: Number(currentId),         count: 20       })     });     const json = await res.json();     if (json.status !== 'ok') throw json;     const messages = json.data.messages || [];      const body = document.getElementById('chatBody');     body.innerHTML = '';     messages.reverse().forEach(m => appendBubble(m));   } catch (e) {     alert('拉取消息失败：' + e);   } }
+
+/* ========= 3秒轮询新消息 ========= */
+async function fetchNewMsg() {
+  if (!currentId) return;
+  try {
+    const res = await fetch(`${apiBase}/${
+      currentType === 'friend'
+        ? 'get_friend_msg_history'
+        : 'get_group_msg_history'
+    }`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        [currentType === 'friend' ? 'user_id' : 'group_id']: Number(currentId),
+        count: 20
+      })
+    });
+    const json = await res.json();
+    if (json.status !== 'ok') return;
+    // 接口返回 旧→新，直接 reverse 变成 新→旧
+    const msgs = (json.data.messages || []).reverse();
+    msgs.forEach(m => {
+      if (m.message_id > lastMsgId) {
+        appendBubble(m);
+        lastMsgId = m.message_id;
+      }
+    });
+  } catch (e) {
+    console.error('auto fetch error', e);
+  }
+}
+
+/* ========= 渲染单条消息 ========= */
+function appendBubble(m) {
+  const isMe = m.sender.user_id === selfId;
+  const div = document.createElement('div');
+  div.className = 'bubble ' + (isMe ? 'me' : 'other');
+  div.textContent = m.raw_message || m.message;
+  document.getElementById('chatBody').appendChild(div);
+  if (m.message_id > lastMsgId) lastMsgId = m.message_id;
+}
+
+/* ========= 发送私聊 ========= */
+async function sendPrivateMsg(uid, text) {
+  return await call('send_private_msg', { user_id: Number(uid), message: text });
+}
+
+/* ========= 发送群聊 ========= */
+async function sendGroupMsg(gid, text) {
+  return await call('send_group_msg', { group_id: Number(gid), message: text });
+}
+
+/* ========= 统一入口 ========= */
+async function sendMsg() {
+  const text = document.getElementById('msgInput').value.trim();
+  if (!text || !currentId) return;
+
+  try {
+    if (currentType === 'friend') {
+      await sendPrivateMsg(currentId, text);
+    } else {
+      await sendGroupMsg(currentId, text);
+    }
+    appendBubble({ sender: { user_id: selfId }, raw_message: text });
+    document.getElementById('msgInput').value = '';
+  } catch (e) {
+    alert('发送失败：' + e.message);
+  }
+}
+
+/* 回车发送 */
+document.getElementById('msgInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMsg();
+  }
+});
+</script>
+</body>
+</html>
