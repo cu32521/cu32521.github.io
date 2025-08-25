@@ -2,12 +2,12 @@
 <html lang="zh-CN">
 <head>
 <meta charset="GBK" />
-<title>QQ PC ¿Í»§¶Ë Demo</title>
+<title>QQ PC å®¢æˆ·ç«¯ Demo</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif;}
   html,body{height:100%;display:flex;background:#f5f5f5;overflow:hidden;}
 
-  /* ×ó²àÁĞ±í */
+  /* å·¦ä¾§åˆ—è¡¨ */
   #left   {width:260px;background:#2e2e2e;color:#fff;display:flex;flex-direction:column;}
   #header {height:60px;line-height:60px;padding:0 15px;font-size:16px;background:#0003;}
   #tabs   {display:flex;border-bottom:1px solid #3e3e3e;}
@@ -19,7 +19,7 @@
   .avatar {width:40px;height:40px;border-radius:50%;margin-right:12px;background:#12b7f5;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:16px;}
   .name   {font-size:14px;}
 
-  /* ÓÒ²àÁÄÌì */
+  /* å³ä¾§èŠå¤© */
   #right      {flex:1;display:flex;flex-direction:column;background:#fff;}
   #chatHeader {height:60px;line-height:60px;padding:0 15px;border-bottom:1px solid #e0e0e0;font-weight:bold;font-size:16px;}
   #chatBody   {flex:1;padding:15px;overflow-y:auto;display:flex;flex-direction:column-reverse;}
@@ -33,28 +33,28 @@
 </head>
 <body>
 
-<!-- ×ó²à -->
+<!-- å·¦ä¾§ -->
 <div id="left">
   <div id="header">NapCat QQ</div>
   <div id="tabs">
-    <div class="tab active" data-type="friend">ºÃÓÑ</div>
-    <div class="tab" data-type="group">Èº</div>
+    <div class="tab active" data-type="friend">å¥½å‹</div>
+    <div class="tab" data-type="group">ç¾¤</div>
   </div>
   <div id="list"></div>
 </div>
 
-<!-- ÓÒ²à -->
+<!-- å³ä¾§ -->
 <div id="right" style="display:none">
   <div id="chatHeader"></div>
   <div id="chatBody"></div>
   <div id="chatFooter">
-    <input id="msgInput" placeholder="ÊäÈëÏûÏ¢»Ø³µ·¢ËÍ" />
-    <button id="sendBtn">·¢ËÍ</button>
+    <input id="msgInput" placeholder="è¾“å…¥æ¶ˆæ¯å›è½¦å‘é€" />
+    <button id="sendBtn">å‘é€</button>
   </div>
 </div>
 
 <script>
-const API = 'http://onebot.yuny.work:3000';   // NapCat HTTP µØÖ·
+const API = 'http://onebot.yuny.work:3000';   // NapCat HTTP åœ°å€
 let selfId = null;
 let friends = [], groups = [];
 let currentType = 'friend';   // friend / group
@@ -62,7 +62,7 @@ let currentId   = null;
 let lastMsgId = 0;
 let autoTimer = null;
 
-/* ========= Í¨ÓÃÇëÇó ========= */
+/* ========= é€šç”¨è¯·æ±‚ ========= */
 async function call(action, params = {}) {
   const res = await fetch(`${API}/${action}`, {
     method: 'POST',
@@ -74,7 +74,7 @@ async function call(action, params = {}) {
   return json.data;
 }
 
-/* ========= ³õÊ¼»¯ ========= */
+/* ========= åˆå§‹åŒ– ========= */
 async function init() {
   const info = await call('get_login_info');
   selfId = info.user_id;
@@ -87,7 +87,7 @@ async function init() {
 }
 init();
 
-/* ========= äÖÈ¾ÁĞ±í ========= */
+/* ========= æ¸²æŸ“åˆ—è¡¨ ========= */
 function renderList(type) {
   const arr = type === 'friend' ? friends : groups;
   const list = document.getElementById('list');
@@ -108,7 +108,7 @@ function renderList(type) {
   });
 }
 
-/* ========= ÇĞ»»±êÇ© ========= */
+/* ========= åˆ‡æ¢æ ‡ç­¾ ========= */
 function bindTabs() {
   document.querySelectorAll('.tab').forEach(tab => {
     tab.onclick = () => {
@@ -120,7 +120,7 @@ function bindTabs() {
   });
 }
 
-/* ========= ´ò¿ªÁÄÌì´°¿Ú ========= */
+/* ========= æ‰“å¼€èŠå¤©çª—å£ ========= */
 async function openChat(type, id, name) {
   currentType = type;
   currentId   = id;
@@ -131,10 +131,10 @@ async function openChat(type, id, name) {
   autoTimer = setInterval(() => fetchNewMsg(), 1000);
 }
 
-/* ========= À­È¡ÀúÊ·ÏûÏ¢ ========= */
-async function loadHistory() {   if (!currentId) return;   try {     const res = await fetch(`${API}/${       currentType === 'friend'         ? 'get_friend_msg_history'         : 'get_group_msg_history'     }`, {       method: 'POST',       headers: { 'Content-Type': 'application/json' },       body: JSON.stringify({         [currentType === 'friend' ? 'user_id' : 'group_id']: Number(currentId),         count: 20       })     });     const json = await res.json();     if (json.status !== 'ok') throw json;     const messages = json.data.messages || [];      const body = document.getElementById('chatBody');     body.innerHTML = '';     messages.reverse().forEach(m => appendBubble(m));   } catch (e) {     alert('À­È¡ÏûÏ¢Ê§°Ü£º' + e);   } }
+/* ========= æ‹‰å–å†å²æ¶ˆæ¯ ========= */
+async function loadHistory() {   if (!currentId) return;   try {     const res = await fetch(`${API}/${       currentType === 'friend'         ? 'get_friend_msg_history'         : 'get_group_msg_history'     }`, {       method: 'POST',       headers: { 'Content-Type': 'application/json' },       body: JSON.stringify({         [currentType === 'friend' ? 'user_id' : 'group_id']: Number(currentId),         count: 20       })     });     const json = await res.json();     if (json.status !== 'ok') throw json;     const messages = json.data.messages || [];      const body = document.getElementById('chatBody');     body.innerHTML = '';     messages.reverse().forEach(m => appendBubble(m));   } catch (e) {     alert('æ‹‰å–æ¶ˆæ¯å¤±è´¥ï¼š' + e);   } }
 
-/* ========= 3ÃëÂÖÑ¯ĞÂÏûÏ¢ ========= */
+/* ========= 3ç§’è½®è¯¢æ–°æ¶ˆæ¯ ========= */
 async function fetchNewMsg() {
   if (!currentId) return;
   try {
@@ -152,7 +152,7 @@ async function fetchNewMsg() {
     });
     const json = await res.json();
     if (json.status !== 'ok') return;
-    // ½Ó¿Ú·µ»Ø ¾É¡úĞÂ£¬Ö±½Ó reverse ±ä³É ĞÂ¡ú¾É
+    // æ¥å£è¿”å› æ—§â†’æ–°ï¼Œç›´æ¥ reverse å˜æˆ æ–°â†’æ—§
     const msgs = (json.data.messages || []).reverse();
     msgs.forEach(m => {
       if (m.message_id > lastMsgId) {
@@ -165,7 +165,7 @@ async function fetchNewMsg() {
   }
 }
 
-/* ========= äÖÈ¾µ¥ÌõÏûÏ¢ ========= */
+/* ========= æ¸²æŸ“å•æ¡æ¶ˆæ¯ ========= */
 function appendBubble(m) {
   const isMe = m.sender.user_id === selfId;
   const div = document.createElement('div');
@@ -175,17 +175,17 @@ function appendBubble(m) {
   if (m.message_id > lastMsgId) lastMsgId = m.message_id;
 }
 
-/* ========= ·¢ËÍË½ÁÄ ========= */
+/* ========= å‘é€ç§èŠ ========= */
 async function sendPrivateMsg(uid, text) {
   return await call('send_private_msg', { user_id: Number(uid), message: text });
 }
 
-/* ========= ·¢ËÍÈºÁÄ ========= */
+/* ========= å‘é€ç¾¤èŠ ========= */
 async function sendGroupMsg(gid, text) {
   return await call('send_group_msg', { group_id: Number(gid), message: text });
 }
 
-/* ========= Í³Ò»Èë¿Ú ========= */
+/* ========= ç»Ÿä¸€å…¥å£ ========= */
 async function sendMsg() {
   const text = document.getElementById('msgInput').value.trim();
   if (!text || !currentId) return;
@@ -199,11 +199,11 @@ async function sendMsg() {
     appendBubble({ sender: { user_id: selfId }, raw_message: text });
     document.getElementById('msgInput').value = '';
   } catch (e) {
-    alert('·¢ËÍÊ§°Ü£º' + e.message);
+    alert('å‘é€å¤±è´¥ï¼š' + e.message);
   }
 }
 
-/* »Ø³µ·¢ËÍ */
+/* å›è½¦å‘é€ */
 document.getElementById('msgInput').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
@@ -212,4 +212,5 @@ document.getElementById('msgInput').addEventListener('keydown', e => {
 });
 </script>
 </body>
+
 </html>
